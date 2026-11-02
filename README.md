@@ -78,6 +78,10 @@ A preset saved as JSON looks like this:
 
 **Demo video:** [ice-mage-wave-demo.mp4](docs/ice-mage-demo/ice-mage-wave-demo.mp4) (13 seconds, shows the four presets in turn: frost arc, crystal spikes, shard burst and cracked ice slab).
 
-**Interactive demo:** open [docs/ice-mage-demo/index.html](docs/ice-mage-demo/index.html) in a browser to see the controls working. It includes four shapes (frost arc, crystal spikes, shard burst, ice slab), four colors (or a custom pair), and shader options for cracks, glow, sparkle and edge lines.
+**Interactive demo:** open [docs/ice-mage-demo/index.html](docs/ice-mage-demo/index.html) in a browser to see the controls working. It includes four shapes (frost arc, crystal cluster, shard burst, ice slab), four colors (or a custom pair), and shader options for cracks, glow, sparkle and edge lines.
+
+**Changing the crystal shape:** the crystal cluster has its own controls for width, facets (3 to 6 sides), asymmetry, random jitter, side crystals and a seed. Drag the white dot at the tip of any crystal on the stage to move that tip by hand. The exported JSON includes these values and the dragged tip offsets under `crystal`.
+
+![Crystal cluster with a dragged tip](docs/ice-mage-demo/crystal-editor.png)
 
 **Shader and effect sources:** [docs/shader-index.md](docs/shader-index.md)
