@@ -44,28 +44,38 @@ A project can describe its own paths and rules in a `tuning-config.json` file at
 
 With `camera_shake` set to `false`, impacts stay soft.
 
-## Example: changing the shape of a wave attack
+## Example: an ice mage's wave attack
 
-A common case is a ground wave attack made of several slashes. The workbench lets you change the shape of each wave without touching code:
+This standard example uses a made-up ice mage who casts a row of ice waves across the ground. Changing the numbers changes the shape of the attack.
 
-- **Count:** how many waves appear (for example 3).
+**Controls used in the example:**
+
+- **Count:** how many waves appear.
 - **Spacing:** the distance between waves.
 - **Height:** how tall each wave rises.
-- **Curve:** how round or sharp the wave edge is.
-- **Tilt:** how much the wave leans forward.
-- **Fade:** how quickly the wave disappears.
+- **Curve:** how round (high) or sharp (low) the wave edge is.
+- **Tilt:** how much the wave leans.
+- **Fade:** how quickly the wave turns transparent.
 
-A saved preset looks like this:
+**Three presets** shown in the demo:
+
+| Preset | Count | Spacing | Height | Curve | Tilt | Fade |
+|---|---|---|---|---|---|---|
+| `ice-wave-v1` | 3 | 48 | 36 | 0.7 | 12 | 0.4 |
+| `ice-wave-v2` | 5 | 36 | 70 | 0.2 | -10 | 0.2 |
+| `ice-spike-v3` | 1 | 20 | 100 | 0.9 | 0 | 0.1 |
+
+A preset saved as JSON looks like this:
 
 ```json
 {
-  "name": "wind-wave-v2",
+  "name": "ice-wave-v2",
   "layers": {
-    "wave": { "enabled": true, "count": 3, "spacing": 48, "height": 36, "curve": 0.7, "tilt": 12, "fade": 0.4 },
-    "trail": { "enabled": true, "length": 60, "brightness": 0.8 }
-  },
-  "hitbox_overlay": true
+    "wave": { "enabled": true, "count": 5, "spacing": 36, "height": 70, "curve": 0.2, "tilt": -10, "fade": 0.2 }
+  }
 }
 ```
 
-Demo video: *(to be added: a short recording of the workbench, showing the wave shape changing from one preset to another. Save it as `docs/wave-demo.mp4` and link it here.)*
+**Demo video:** [ice-mage-wave-demo.mp4](docs/ice-mage-demo/ice-mage-wave-demo.mp4) (10 seconds, shows the three presets in turn).
+
+**Interactive demo:** open [docs/ice-mage-demo/index.html](docs/ice-mage-demo/index.html) in a browser to see the controls working.
