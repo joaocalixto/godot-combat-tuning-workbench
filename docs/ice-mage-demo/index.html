@@ -2,122 +2,295 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Ice Mage - Wave Attack Workbench (example)</title>
+<title>Ice Mage - Ice Attack Workbench (example)</title>
 <style>
   body { margin: 0; background: #0d1620; color: #d8f1ff; font-family: system-ui, sans-serif; }
   .wrap { display: flex; gap: 16px; padding: 16px; box-sizing: border-box; height: 100vh; }
   .stage { flex: 1; display: flex; align-items: center; justify-content: center; }
-  canvas { background: linear-gradient(#14283a, #0a1622); border-radius: 8px; }
-  .panel { width: 240px; overflow-y: auto; max-height: calc(100vh - 32px); background: #112233; padding: 12px; border-radius: 8px; }
-  .panel h2 { font-size: 16px; margin: 4px 0 12px; }
-  label { display: block; font-size: 13px; margin-top: 10px; }
+  canvas { background: linear-gradient(#14283a, #0a1622); border-radius: 8px; max-width: 100%; height: auto; }
+  .panel { width: 260px; overflow-y: auto; max-height: calc(100vh - 32px); background: #112233; padding: 12px; border-radius: 8px; box-sizing: border-box; }
+  .panel h2 { font-size: 16px; margin: 4px 0 8px; }
+  .panel h3 { font-size: 13px; margin: 16px 0 4px; color: #8fd8ff; text-transform: uppercase; letter-spacing: 0.05em; }
+  label { display: block; font-size: 13px; margin-top: 8px; }
   input[type=range] { width: 100%; }
+  select, button { width: 100%; margin-top: 4px; padding: 5px; background: #1b3347; color: #d8f1ff; border: 1px solid #2d5470; border-radius: 4px; font-size: 13px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row input[type=color] { flex: 1; height: 28px; background: none; border: none; }
   .val { float: right; color: #8fd8ff; }
-  .preset { font-size: 13px; color: #8fd8ff; margin-top: 14px; }
+  .status { font-size: 13px; color: #8fd8ff; margin-top: 12px; }
+  textarea { width: 100%; height: 150px; margin-top: 6px; background: #0a1622; color: #bfe9ff; border: 1px solid #2d5470; border-radius: 4px; font-size: 11px; box-sizing: border-box; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="stage"><canvas id="c" width="640" height="420"></canvas></div>
   <div class="panel">
-    <h2>Ice wave controls</h2>
-    <label>Count <span class="val" id="v-count"></span><input type="range" id="count" min="1" max="7" step="1"></label>
-    <label>Spacing <span class="val" id="v-spacing"></span><input type="range" id="spacing" min="20" max="80" step="1"></label>
-    <label>Height <span class="val" id="v-height"></span><input type="range" id="height" min="20" max="120" step="1"></label>
-    <label>Curve <span class="val" id="v-curve"></span><input type="range" id="curve" min="0" max="1" step="0.05"></label>
+    <h2>Ice attack controls</h2>
+
+    <h3>Load preset</h3>
+    <select id="load"></select>
+
+    <h3>Shape</h3>
+    <select id="shape">
+      <option value="arc">Frost arc (wave)</option>
+      <option value="spikes">Crystal spikes</option>
+      <option value="burst">Shard burst</option>
+      <option value="slab">Ice slab</option>
+    </select>
+
+    <h3>Color</h3>
+    <select id="color">
+      <option value="ice-blue">Ice blue</option>
+      <option value="pale-frost">Pale frost</option>
+      <option value="violet-frost">Violet frost</option>
+      <option value="teal-ice">Teal ice</option>
+      <option value="custom">Custom</option>
+    </select>
+    <div class="row" id="custom-row" style="display:none">
+      <input type="color" id="cin" value="#78d2ff" title="Inner color">
+      <input type="color" id="cout" value="#e6faff" title="Outer color">
+    </div>
+
+    <h3>Shape numbers</h3>
+    <label>Count <span class="val" id="v-count"></span><input type="range" id="count" min="1" max="10" step="1"></label>
+    <label>Spacing / width <span class="val" id="v-spacing"></span><input type="range" id="spacing" min="20" max="120" step="1"></label>
+    <label>Height <span class="val" id="v-height"></span><input type="range" id="height" min="20" max="140" step="1"></label>
+    <label>Curve / sharpness <span class="val" id="v-curve"></span><input type="range" id="curve" min="0" max="1" step="0.05"></label>
     <label>Tilt <span class="val" id="v-tilt"></span><input type="range" id="tilt" min="-30" max="30" step="1"></label>
     <label>Fade <span class="val" id="v-fade"></span><input type="range" id="fade" min="0" max="1" step="0.05"></label>
-    <div class="preset" id="preset-name"></div>
+
+    <h3>Shader effects</h3>
+    <label><input type="checkbox" id="cracks"> Cracks (slab only)</label>
+    <label>Glow <span class="val" id="v-glow"></span><input type="range" id="glow" min="0" max="1" step="0.05"></label>
+    <label>Sparkle <span class="val" id="v-sparkle"></span><input type="range" id="sparkle" min="0" max="1" step="0.05"></label>
+    <label>Edge line <span class="val" id="v-edge"></span><input type="range" id="edge" min="0" max="4" step="0.5"></label>
+
+    <button id="toggle">Pause preset loop (edit mode)</button>
+    <button id="export">Export JSON</button>
+    <textarea id="json" placeholder="Click Export JSON to get the values here"></textarea>
+    <div class="status" id="status"></div>
   </div>
 </div>
 <script>
 const presets = [
-  { name: "ice-wave-v1", count: 3, spacing: 48, height: 36, curve: 0.7, tilt: 12, fade: 0.4 },
-  { name: "ice-wave-v2", count: 5, spacing: 36, height: 70, curve: 0.2, tilt: -10, fade: 0.2 },
-  { name: "ice-spike-v3", count: 1, spacing: 20, height: 100, curve: 0.9, tilt: 0, fade: 0.1 }
+  { name: "ice-wave-v2", shape: "arc", color: "ice-blue", cracks: false, count: 5, spacing: 36, height: 70, curve: 0.2, tilt: -10, fade: 0.2, glow: 0.3, sparkle: 0.2, edge: 1 },
+  { name: "ice-spike-v3", shape: "spikes", color: "pale-frost", cracks: false, count: 4, spacing: 60, height: 110, curve: 0.5, tilt: 0, fade: 0.1, glow: 0.5, sparkle: 0.4, edge: 1.5 },
+  { name: "ice-burst-v1", shape: "burst", color: "violet-frost", cracks: false, count: 10, spacing: 60, height: 120, curve: 0.4, tilt: 0, fade: 0.3, glow: 0.6, sparkle: 0.8, edge: 1 },
+  { name: "ice-slab-v1", shape: "slab", color: "teal-ice", cracks: true, count: 2, spacing: 70, height: 80, curve: 0.15, tilt: 6, fade: 0.2, glow: 0.2, sparkle: 0.1, edge: 2 }
 ];
-const keys = ["count", "spacing", "height", "curve", "tilt", "fade"];
-const state = { ...presets[0] };
+const COLORS = {
+  "ice-blue": { inner: "#78d2ff", outer: "#e6faff" },
+  "pale-frost": { inner: "#c9ecff", outer: "#ffffff" },
+  "violet-frost": { inner: "#9b7bff", outer: "#e8e0ff" },
+  "teal-ice": { inner: "#2fc4b0", outer: "#d8fff6" }
+};
+const NUM = ["count", "spacing", "height", "curve", "tilt", "fade", "glow", "sparkle", "edge"];
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
 const groundY = 360;
-const startX = 120;
-
-for (const k of keys) {
-  const el = document.getElementById(k);
-  el.value = state[k];
-  el.addEventListener("input", () => { state[k] = parseFloat(el.value); state.name = "custom"; });
-}
-
-function applyState() {
-  for (const k of keys) {
-    document.getElementById(k).value = state[k];
-  }
-  for (const k of keys) {
-    document.getElementById("v-" + k).textContent = state[k];
-  }
-  document.getElementById("preset-name").textContent = "Preset: " + state.name;
-}
-
-function drawWave(x, h, curve, tilt, alpha) {
-  const peakY = groundY - h;
-  const bulge = h * (0.5 + curve * 0.5);
-  const g = ctx.createLinearGradient(x, groundY, x, peakY);
-  g.addColorStop(0, `rgba(120, 210, 255, ${alpha})`);
-  g.addColorStop(1, `rgba(230, 250, 255, ${alpha})`);
-  ctx.beginPath();
-  ctx.moveTo(x, groundY);
-  ctx.quadraticCurveTo(x + tilt, groundY - bulge, x + tilt * 1.5, peakY);
-  ctx.quadraticCurveTo(x + tilt * 0.5 + 12, groundY - h * 0.4, x + 22, groundY);
-  ctx.closePath();
-  ctx.fillStyle = g;
-  ctx.fill();
-  ctx.strokeStyle = `rgba(200, 245, 255, ${alpha})`;
-  ctx.lineWidth = 2;
-  ctx.stroke();
-}
-
-let t0 = performance.now();
-let presetIndex = 0;
-let lastSwitch = t0;
+const startX = 110;
+const state = { ...presets[0] };
 const from = { ...presets[0] };
+let idx = 0, lastSwitch = performance.now(), paused = false;
 
+const $ = id => document.getElementById(id);
+function r(v, d) { return Math.round(v * 10 ** d) / 10 ** d; }
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+function colorsFor(s) {
+  return s.color === "custom" ? { inner: $("cin").value, outer: $("cout").value } : COLORS[s.color];
+}
+function rnd(i, k) { const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); }
+
+// ---- Shapes: each returns an array of Path2D ----
+function arcPaths(x, h, s) {
+  const p = new Path2D();
+  const bulge = h * (0.5 + s.curve * 0.5);
+  p.moveTo(x, groundY);
+  p.quadraticCurveTo(x + s.tilt, groundY - bulge, x + s.tilt * 1.5, groundY - h);
+  p.quadraticCurveTo(x + s.tilt * 0.5 + 12, groundY - h * 0.4, x + 22, groundY);
+  p.closePath();
+  return [p];
+}
+function spikePaths(x, h, s) {
+  const w = 14 + s.curve * 24;
+  const main = new Path2D();
+  main.moveTo(x - w / 2, groundY);
+  main.lineTo(x + s.tilt * 0.6, groundY - h);
+  main.lineTo(x + w / 2, groundY);
+  main.closePath();
+  const side = new Path2D();
+  side.moveTo(x + w * 0.4, groundY);
+  side.lineTo(x + w * 0.4 + s.tilt * 0.3, groundY - h * 0.55);
+  side.lineTo(x + w * 0.9, groundY);
+  side.closePath();
+  return [main, side];
+}
+function burstPaths(s, h) {
+  const cx = 320, cy = groundY - 130, base = 4 + (1 - s.curve) * 10, out = [];
+  const n = Math.round(s.count);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + 0.3, L = h * 0.9;
+    const px = -Math.sin(a) * base, py = Math.cos(a) * base;
+    const p = new Path2D();
+    p.moveTo(cx + px, cy + py);
+    p.lineTo(cx + Math.cos(a) * L, cy + Math.sin(a) * L);
+    p.lineTo(cx - px, cy - py);
+    p.closePath();
+    out.push(p);
+  }
+  return out;
+}
+function slabPaths(x, h, s) {
+  const p = new Path2D();
+  const rad = Math.min(s.curve * 30, s.spacing / 2, h / 2);
+  if (p.roundRect) p.roundRect(x, groundY - h, s.spacing, h, rad); else p.rect(x, groundY - h, s.spacing, h);
+  return [p];
+}
+function crackPaths(x, h, s, seed) {
+  const out = [];
+  for (let k = 0; k < 3; k++) {
+    const p = new Path2D();
+    let px = x + s.spacing * (0.2 + 0.6 * rnd(seed, k)), py = groundY - h * (0.85 - 0.1 * k);
+    p.moveTo(px, py);
+    for (let j = 0; j < 3; j++) {
+      px += (rnd(seed, k * 7 + j) - 0.5) * s.spacing * 0.35;
+      py += h * 0.2 * rnd(seed, k * 13 + j + 3);
+      p.lineTo(px, Math.min(py, groundY - 2));
+    }
+    out.push(p);
+  }
+  return out;
+}
+
+function drawLayer(paths, c, alpha, s) {
+  const g = ctx.createLinearGradient(0, groundY, 0, groundY - 130);
+  g.addColorStop(0, hexA(c.inner, alpha));
+  g.addColorStop(1, hexA(c.outer, alpha));
+  for (const p of paths) {
+    ctx.save();
+    ctx.shadowBlur = s.glow * 30;
+    ctx.shadowColor = hexA(c.inner, 0.9);
+    ctx.fillStyle = g;
+    ctx.fill(p);
+    ctx.restore();
+    if (s.edge > 0) {
+      ctx.strokeStyle = hexA(c.outer, alpha);
+      ctx.lineWidth = s.edge;
+      ctx.stroke(p);
+    }
+  }
+}
+
+function drawSparkles(s, c, t) {
+  const n = Math.round(s.sparkle * 24);
+  for (let i = 0; i < n; i++) {
+    const x = 90 + rnd(i, 1) * 480;
+    const y = groundY - 10 - rnd(i, 2) * 150;
+    const a = s.sparkle * (0.5 + 0.5 * Math.sin(t * 5 + i * 1.7));
+    ctx.fillStyle = hexA(c.outer, a);
+    ctx.beginPath();
+    ctx.arc(x, y, 1.5 + rnd(i, 3) * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function applyUI() {
+  for (const k of NUM) {
+    $(k).value = state[k];
+    $("v-" + k).textContent = r(state[k], 2);
+  }
+  $("shape").value = state.shape;
+  $("color").value = state.color;
+  $("cracks").checked = state.cracks;
+  $("custom-row").style.display = state.color === "custom" ? "flex" : "none";
+  $("status").textContent = (paused ? "Edit mode: " : "Preset: ") + state.name;
+  $("toggle").textContent = paused ? "Resume preset loop" : "Pause preset loop (edit mode)";
+}
+
+// ---- Controls ----
+for (const k of NUM) {
+  $(k).addEventListener("input", () => { state[k] = parseFloat($(k).value); paused = true; applyUI(); });
+}
+$("shape").addEventListener("change", () => { state.shape = $("shape").value; paused = true; applyUI(); });
+$("color").addEventListener("change", () => { state.color = $("color").value; paused = true; applyUI(); });
+$("cin").addEventListener("input", () => { state.color = "custom"; paused = true; applyUI(); });
+$("cout").addEventListener("input", () => { state.color = "custom"; paused = true; applyUI(); });
+$("cracks").addEventListener("change", () => { state.cracks = $("cracks").checked; paused = true; applyUI(); });
+$("toggle").addEventListener("click", () => {
+  paused = !paused;
+  if (!paused) { lastSwitch = performance.now(); Object.assign(from, state); }
+  applyUI();
+});
+presets.forEach((p, i) => { const o = document.createElement("option"); o.value = i; o.textContent = p.name; $("load").appendChild(o); });
+$("load").addEventListener("change", () => {
+  Object.assign(state, presets[+$("load").value]);
+  paused = true;
+  applyUI();
+});
+$("export").addEventListener("click", () => {
+  const c = colorsFor(state);
+  const out = {
+    name: state.name,
+    shape: state.shape,
+    color: state.color,
+    colors: { inner: c.inner, outer: c.outer },
+    shader: { cracks: state.cracks, glow: r(state.glow, 2), sparkle: r(state.sparkle, 2), edge: state.edge },
+    geometry: { count: Math.round(state.count), spacing: Math.round(state.spacing), height: Math.round(state.height), curve: r(state.curve, 2), tilt: Math.round(state.tilt), fade: r(state.fade, 2) }
+  };
+  $("json").value = JSON.stringify(out, null, 2);
+});
+
+// ---- Render loop ----
 function frame(now) {
-  const elapsed = now - t0;
-  // Switch to the next preset every 2.5 seconds, with a smooth blend
-  if (now - lastSwitch > 2500) {
-    lastSwitch = now;
-    presetIndex = (presetIndex + 1) % presets.length;
-    Object.assign(from, state);
-    Object.assign(state, presets[presetIndex]);
+  if (!paused) {
+    if (now - lastSwitch > 3000) {
+      lastSwitch = now;
+      Object.assign(from, state);
+      idx = (idx + 1) % presets.length;
+      const t = presets[idx];
+      state.name = t.name; state.shape = t.shape; state.color = t.color; state.cracks = t.cracks;
+    }
+    const blend = Math.min(1, (now - lastSwitch) / 800);
+    const t = presets[idx];
+    for (const k of NUM) state[k] = from[k] + (t[k] - from[k]) * blend;
   }
-  const blend = Math.min(1, (now - lastSwitch) / 800);
-  const cur = {};
-  for (const k of keys) {
-    const a = from[k], b = presets[presetIndex][k];
-    cur[k] = a + (b - a) * blend;
-  }
-  if (blend >= 1) {
-    for (const k of keys) state[k] = presets[presetIndex][k];
-  }
-  // Grow animation: waves rise in during the first 600 ms of each cycle
-  const grow = Math.min(1, ((now - lastSwitch) % 2500) / 600);
+  const grow = Math.min(1, (now - lastSwitch) / 600);
+  const time = now / 1000;
+  const c = colorsFor(state);
+  const alpha = 1 - state.fade * 0.5;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "rgba(160, 220, 255, 0.25)";
   ctx.fillRect(0, groundY, canvas.width, 2);
 
-  for (let i = 0; i < Math.round(cur.count); i++) {
-    const x = startX + i * cur.spacing;
-    drawWave(x, cur.height * grow, cur.curve, cur.tilt, 1 - cur.fade * 0.5);
+  const n = Math.round(state.count);
+  const h = state.height * grow;
+  if (state.shape === "burst") {
+    drawLayer(burstPaths(state, h), c, alpha, state);
+  } else {
+    for (let i = 0; i < n; i++) {
+      let paths;
+      if (state.shape === "arc") paths = arcPaths(startX + i * state.spacing, h, state);
+      else if (state.shape === "spikes") paths = spikePaths(startX + i * state.spacing, h, state);
+      else paths = slabPaths(startX + i * (state.spacing + 14), h, state);
+      drawLayer(paths, c, alpha, state);
+      if (state.shape === "slab" && state.cracks) {
+        ctx.strokeStyle = hexA("#ffffff", 0.7 * alpha);
+        ctx.lineWidth = 1.5;
+        for (const p of crackPaths(startX + i * (state.spacing + 14), h, state, i + 1)) ctx.stroke(p);
+      }
+    }
   }
+  drawSparkles(state, c, time);
 
-  for (const k of keys) state[k] = cur[k];
-  applyState();
+  if (!paused) applyUI();
   requestAnimationFrame(frame);
 }
 
-applyState();
+applyUI();
 requestAnimationFrame(frame);
 </script>
 </body>

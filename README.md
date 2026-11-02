@@ -76,6 +76,8 @@ A preset saved as JSON looks like this:
 }
 ```
 
-**Demo video:** [ice-mage-wave-demo.mp4](docs/ice-mage-demo/ice-mage-wave-demo.mp4) (10 seconds, shows the three presets in turn).
+**Demo video:** [ice-mage-wave-demo.mp4](docs/ice-mage-demo/ice-mage-wave-demo.mp4) (13 seconds, shows the four presets in turn: frost arc, crystal spikes, shard burst and cracked ice slab).
 
-**Interactive demo:** open [docs/ice-mage-demo/index.html](docs/ice-mage-demo/index.html) in a browser to see the controls working.
+**Interactive demo:** open [docs/ice-mage-demo/index.html](docs/ice-mage-demo/index.html) in a browser to see the controls working. It includes four shapes (frost arc, crystal spikes, shard burst, ice slab), four colors (or a custom pair), and shader options for cracks, glow, sparkle and edge lines.
+
+**Shader and effect sources:** [docs/shader-index.md](docs/shader-index.md)
