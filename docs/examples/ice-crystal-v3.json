@@ -7,7 +7,6 @@
     "outer": "#ffffff"
   },
   "shader": {
-    "cracks": false,
     "glow": 0.5,
     "sparkle": 0.4,
     "edge": 1.5
