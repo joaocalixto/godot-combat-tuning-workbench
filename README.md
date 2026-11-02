@@ -84,6 +84,8 @@ A preset saved as JSON looks like this:
 
 ![Crystal cluster with a dragged tip](docs/ice-mage-demo/crystal-editor.png)
 
+**How the attack launches:** choose how the pieces appear: all at once, sweep left to right, sweep right to left, burst out from the center, or fall from above. Set the rise time (how long one piece takes to appear), the hold time (how long it stays) and the stagger (how much the pieces start one after another). The exported JSON stores these under `launch`.
+
 **Play, save and reuse a definition:**
 
 - **Save to library:** type a name in *Definition name* and click *Save to library*. The definition stays in your browser.

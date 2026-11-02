@@ -74,6 +74,19 @@
     <button id="reseed">New random seed</button>
     <button id="resettips">Reset dragged tips</button>
 
+    <h3>How the attack launches</h3>
+    <select id="launch">
+      <option value="together">All at once (rise together)</option>
+      <option value="sweep">Sweep left to right</option>
+      <option value="sweep-reverse">Sweep right to left</option>
+      <option value="burst">Burst out from the center</option>
+      <option value="fall">Fall from above</option>
+    </select>
+    <label>Rise time (ms) <span class="val" id="v-rise"></span><input type="range" id="rise" min="200" max="1500" step="50"></label>
+    <label>Hold time (ms) <span class="val" id="v-hold"></span><input type="range" id="hold" min="0" max="2000" step="50"></label>
+    <label>Stagger (delay between pieces) <span class="val" id="v-stagger"></span><input type="range" id="stagger" min="0" max="1" step="0.05"></label>
+    <div class="hint">Stagger 0 means every piece starts together. Stagger 1 means the pieces start one after another across the whole rise time.</div>
+
     <h3>Shader effects</h3>
     <label><input type="checkbox" id="cracks"> Cracks (slab only)</label>
     <label>Glow <span class="val" id="v-glow"></span><input type="range" id="glow" min="0" max="1" step="0.05"></label>
@@ -106,12 +119,12 @@
   </div>
 </div>
 <script>
-const DEFAULT = { width: 30, facets: 4, asym: 0.2, jitter: 0.2, side: 1, seed: 7 };
+const DEFAULT = { width: 30, facets: 4, asym: 0.2, jitter: 0.2, side: 1, seed: 7, launch: "together", rise: 600, hold: 300, stagger: 0.3 };
 const presets = [
-  { ...DEFAULT, name: "ice-wave-v2", shape: "arc", color: "ice-blue", cracks: false, count: 5, spacing: 36, height: 70, curve: 0.2, tilt: -10, fade: 0.2, glow: 0.3, sparkle: 0.2, edge: 1 },
-  { ...DEFAULT, name: "ice-crystal-v3", shape: "crystal", color: "pale-frost", cracks: false, count: 4, spacing: 60, height: 110, curve: 0.5, tilt: 0, fade: 0.1, glow: 0.5, sparkle: 0.4, edge: 1.5, width: 34, facets: 5, asym: 0.35, jitter: 0.25, side: 2, seed: 11 },
-  { ...DEFAULT, name: "ice-burst-v1", shape: "burst", color: "violet-frost", cracks: false, count: 10, spacing: 60, height: 120, curve: 0.4, tilt: 0, fade: 0.3, glow: 0.6, sparkle: 0.8, edge: 1 },
-  { ...DEFAULT, name: "ice-slab-v1", shape: "slab", color: "teal-ice", cracks: true, count: 2, spacing: 70, height: 80, curve: 0.15, tilt: 6, fade: 0.2, glow: 0.2, sparkle: 0.1, edge: 2 }
+  { ...DEFAULT, name: "ice-wave-v2", shape: "arc", color: "ice-blue", cracks: false, count: 5, spacing: 36, height: 70, curve: 0.2, tilt: -10, fade: 0.2, glow: 0.3, sparkle: 0.2, edge: 1, launch: "sweep", rise: 500, hold: 250, stagger: 0.25 },
+  { ...DEFAULT, name: "ice-crystal-v3", shape: "crystal", color: "pale-frost", cracks: false, count: 4, spacing: 60, height: 110, curve: 0.5, tilt: 0, fade: 0.1, glow: 0.5, sparkle: 0.4, edge: 1.5, width: 34, facets: 5, asym: 0.35, jitter: 0.25, side: 2, seed: 11, launch: "fall", rise: 700, hold: 400, stagger: 0.4 },
+  { ...DEFAULT, name: "ice-burst-v1", shape: "burst", color: "violet-frost", cracks: false, count: 10, spacing: 60, height: 120, curve: 0.4, tilt: 0, fade: 0.3, glow: 0.6, sparkle: 0.8, edge: 1, launch: "burst", rise: 450, hold: 300, stagger: 0.5 },
+  { ...DEFAULT, name: "ice-slab-v1", shape: "slab", color: "teal-ice", cracks: true, count: 2, spacing: 70, height: 80, curve: 0.15, tilt: 6, fade: 0.2, glow: 0.2, sparkle: 0.1, edge: 2, launch: "together", rise: 700, hold: 300, stagger: 0 }
 ];
 const COLORS = {
   "ice-blue": { inner: "#78d2ff", outer: "#e6faff" },
@@ -119,7 +132,7 @@ const COLORS = {
   "violet-frost": { inner: "#9b7bff", outer: "#e8e0ff" },
   "teal-ice": { inner: "#2fc4b0", outer: "#d8fff6" }
 };
-const NUM = ["count", "spacing", "height", "curve", "tilt", "fade", "glow", "sparkle", "edge", "width", "facets", "asym", "jitter", "side", "seed"];
+const NUM = ["count", "spacing", "height", "curve", "tilt", "fade", "glow", "sparkle", "edge", "width", "facets", "asym", "jitter", "side", "seed", "rise", "hold", "stagger"];
 const LIB_KEY = "ice-bancada-library";
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
@@ -129,12 +142,13 @@ const state = { ...presets[0] };
 const from = { ...presets[0] };
 let idx = 0, lastSwitch = performance.now(), paused = false, solo = false, soloStart = 0;
 const tipOverrides = {};   // dragged tip offsets for crystal main tips, keyed by crystal index
-let lastTips = [];         // base tip positions from the last frame (without drag offsets)
+let lastTips = [];         // base tip positions from the last frame (logical, before drag and fall offset)
 let dragIdx = null;
 let memLib = [];           // fallback if localStorage is not available
 
 const $ = id => document.getElementById(id);
 function r(v, d) { return Math.round(v * 10 ** d) / 10 ** d; }
+function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 function hexA(hex, a) {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
@@ -145,36 +159,49 @@ function colorsFor(s) {
 function rnd(i, k) { const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); }
 function status(msg) { $("status").textContent = msg; }
 
-// ---- Arc, burst and slab shapes (each returns Path2D list) ----
-function arcPaths(x, h, s) {
+// ---- Launch timing: when and how each piece appears ----
+// Returns: p = how far the piece has risen (0 to 1), alpha = visibility, dy = vertical offset (for "fall")
+function itemTiming(i, n, s, tc, frozen) {
+  if (frozen) return { p: 1, alpha: 1, dy: 0 };
+  const rise = s.rise, stag = s.stagger * rise, center = (n - 1) / 2, maxDist = Math.max(1, center);
+  let delay = 0;
+  switch (s.launch) {
+    case "sweep": case "fall": delay = i * stag; break;
+    case "sweep-reverse": delay = (n - 1 - i) * stag; break;
+    case "burst": delay = (Math.abs(i - center) / maxDist) * stag; break;
+    default: delay = 0; // together
+  }
+  const p = clamp01((tc - delay) / rise);
+  const eased = 1 - Math.pow(1 - p, 3);
+  const alpha = clamp01(1 - (tc - rise - s.hold) / 600) * (p > 0 ? 1 : 0);
+  const dy = s.launch === "fall" ? (1 - eased) * 140 : 0;
+  return { p: eased, alpha, dy };
+}
+
+// ---- Arc, slab and burst shapes ----
+function arcPath(x, h, s) {
   const p = new Path2D();
   const bulge = h * (0.5 + s.curve * 0.5);
   p.moveTo(x, groundY);
   p.quadraticCurveTo(x + s.tilt, groundY - bulge, x + s.tilt * 1.5, groundY - h);
   p.quadraticCurveTo(x + s.tilt * 0.5 + 12, groundY - h * 0.4, x + 22, groundY);
   p.closePath();
-  return [p];
+  return p;
 }
-function burstPaths(s, h) {
-  const cx = 320, cy = groundY - 130, base = 4 + (1 - s.curve) * 10, out = [];
-  const n = Math.round(s.count);
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 + 0.3, L = h * 0.9;
-    const px = -Math.sin(a) * base, py = Math.cos(a) * base;
-    const p = new Path2D();
-    p.moveTo(cx + px, cy + py);
-    p.lineTo(cx + Math.cos(a) * L, cy + Math.sin(a) * L);
-    p.lineTo(cx - px, cy - py);
-    p.closePath();
-    out.push(p);
-  }
-  return out;
-}
-function slabPaths(x, h, s) {
+function slabPath(x, h, s) {
   const p = new Path2D();
   const rad = Math.min(s.curve * 30, s.spacing / 2, h / 2);
   if (p.roundRect) p.roundRect(x, groundY - h, s.spacing, h, rad); else p.rect(x, groundY - h, s.spacing, h);
-  return [p];
+  return p;
+}
+function rayPath(cx, cy, a, L, base) {
+  const px = -Math.sin(a) * base, py = Math.cos(a) * base;
+  const p = new Path2D();
+  p.moveTo(cx + px, cy + py);
+  p.lineTo(cx + Math.cos(a) * L, cy + Math.sin(a) * L);
+  p.lineTo(cx - px, cy - py);
+  p.closePath();
+  return p;
 }
 function crackPaths(x, h, s, seed) {
   const out = [];
@@ -190,6 +217,22 @@ function crackPaths(x, h, s, seed) {
     out.push(p);
   }
   return out;
+}
+function fillPiece(path, c, alpha, s) {
+  const g = ctx.createLinearGradient(0, groundY, 0, groundY - 130);
+  g.addColorStop(0, hexA(c.inner, alpha));
+  g.addColorStop(1, hexA(c.outer, alpha));
+  ctx.save();
+  ctx.shadowBlur = s.glow * 30;
+  ctx.shadowColor = hexA(c.inner, 0.9);
+  ctx.fillStyle = g;
+  ctx.fill(path);
+  ctx.restore();
+  if (s.edge > 0) {
+    ctx.strokeStyle = hexA(c.outer, alpha);
+    ctx.lineWidth = s.edge;
+    ctx.stroke(path);
+  }
 }
 
 // ---- Crystal: one editable crystal piece (body, two lit halves, facet lines) ----
@@ -233,37 +276,44 @@ function drawCrystalPiece(piece, c, alpha, s) {
   for (const l of piece.lines) ctx.stroke(l);
 }
 
-function drawCrystals(s, c, alpha, grow) {
+function drawCrystals(s, c, alpha, tc, frozen) {
   const n = Math.round(s.count);
   const facets = Math.round(s.facets), side = Math.round(s.side);
   lastTips = [];
-  const h = s.height * grow;
   const mains = [];
   for (let i = 0; i < n; i++) {
+    const tm = itemTiming(i, n, s, tc, frozen);
     const seed = i + s.seed;
     const x = startX + i * s.spacing;
-    const hh = h * (1 + (rnd(seed, 1) - 0.5) * s.jitter * 0.6);
+    const hBase = s.height * tm.p;
+    const hh = hBase * (1 + (rnd(seed, 1) - 0.5) * s.jitter * 0.6);
     const ww = s.width * (1 + (rnd(seed, 2) - 0.5) * s.jitter * 0.4);
     const baseTipX = x + s.tilt + (rnd(seed, 3) - 0.5) * s.jitter * s.width * 0.5;
     const baseTipY = groundY - hh;
-    lastTips.push({ x: baseTipX, y: baseTipY });
+    lastTips.push({ x: baseTipX, y: baseTipY, dy: tm.dy });
+    if (tm.alpha <= 0 || hh <= 0.5) continue;
     const ov = tipOverrides[i] || { dx: 0, dy: 0 };
-    // side crystals first, so the main crystal sits in front
+    ctx.save();
+    ctx.translate(0, -tm.dy);
     for (let m = 0; m < side; m++) {
       const sign = m % 2 ? 1 : -1;
       const sx = x + sign * ww * (0.55 + 0.3 * Math.floor(m / 2));
       const sh = Math.max(10, hh * (0.55 - 0.15 * Math.floor(m / 2)));
       const sw = ww * 0.6;
-      drawCrystalPiece(crystalPiece(sx, sh, sw, sx + sign * sw * 0.1, groundY - sh, s, 3, 0), c, alpha, s);
+      drawCrystalPiece(crystalPiece(sx, sh, sw, sx + sign * sw * 0.1, groundY - sh, s, 3, 0), c, alpha * tm.alpha, s);
     }
-    mains.push({ x, hh, ww, tipX: baseTipX + ov.dx, tipY: baseTipY + ov.dy });
+    mains.push({ x, hh, ww, tipX: baseTipX + ov.dx, tipY: baseTipY + ov.dy, dy: tm.dy, a: alpha * tm.alpha });
+    ctx.restore();
   }
   for (const m of mains) {
-    drawCrystalPiece(crystalPiece(m.x, m.hh, m.ww, m.tipX, m.tipY, s, facets, s.asym), c, alpha, s);
+    ctx.save();
+    ctx.translate(0, -m.dy);
+    drawCrystalPiece(crystalPiece(m.x, m.hh, m.ww, m.tipX, m.tipY, s, facets, s.asym), c, m.a, s);
+    ctx.restore();
   }
   for (const m of mains) {
     ctx.beginPath();
-    ctx.arc(m.tipX, m.tipY, 5, 0, Math.PI * 2);
+    ctx.arc(m.tipX, m.tipY - m.dy, 5, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(255,255,255,0.7)";
     ctx.fill();
   }
@@ -289,6 +339,7 @@ function applyUI() {
   }
   $("shape").value = state.shape;
   $("color").value = state.color;
+  $("launch").value = state.launch;
   $("cracks").checked = state.cracks;
   $("custom-row").style.display = state.color === "custom" ? "flex" : "none";
   const mode = solo ? "Playing: " : (paused ? "Edit mode: " : "Preset: ");
@@ -306,18 +357,20 @@ function currentDefinition(name) {
     colors: { inner: c.inner, outer: c.outer },
     shader: { cracks: state.cracks, glow: r(state.glow, 2), sparkle: r(state.sparkle, 2), edge: state.edge },
     geometry: { count: Math.round(state.count), spacing: Math.round(state.spacing), height: Math.round(state.height), curve: r(state.curve, 2), tilt: Math.round(state.tilt), fade: r(state.fade, 2) },
+    launch: { style: state.launch, rise_ms: Math.round(state.rise), hold_ms: Math.round(state.hold), stagger: r(state.stagger, 2) },
     crystal: { width: Math.round(state.width), facets: Math.round(state.facets), asymmetry: r(state.asym, 2), jitter: r(state.jitter, 2), side_crystals: Math.round(state.side), seed: Math.round(state.seed),
       tip_offsets: Object.entries(tipOverrides).map(([i, o]) => ({ index: +i, dx: Math.round(o.dx), dy: Math.round(o.dy) })) }
   };
 }
 function applyDefinition(d) {
-  const g = d.geometry || {}, cr = d.crystal || {}, sh = d.shader || {};
+  const g = d.geometry || {}, cr = d.crystal || {}, sh = d.shader || {}, la = d.launch || {};
   Object.assign(state, {
     name: d.name || "imported",
     shape: d.shape ?? state.shape, color: d.color ?? state.color,
     cracks: sh.cracks ?? state.cracks, glow: sh.glow ?? state.glow, sparkle: sh.sparkle ?? state.sparkle, edge: sh.edge ?? state.edge,
     count: g.count ?? state.count, spacing: g.spacing ?? state.spacing, height: g.height ?? state.height,
     curve: g.curve ?? state.curve, tilt: g.tilt ?? state.tilt, fade: g.fade ?? state.fade,
+    launch: la.style ?? state.launch, rise: la.rise_ms ?? state.rise, hold: la.hold_ms ?? state.hold, stagger: la.stagger ?? state.stagger,
     width: cr.width ?? state.width, facets: cr.facets ?? state.facets, asym: cr.asymmetry ?? state.asym,
     jitter: cr.jitter ?? state.jitter, side: cr.side_crystals ?? state.side, seed: cr.seed ?? state.seed
   });
@@ -372,15 +425,17 @@ function download(blob, name) {
 }
 
 // ---- Controls ----
+function edited() { paused = true; solo = false; }
 for (const k of NUM) {
-  $(k).addEventListener("input", () => { state[k] = parseFloat($(k).value); paused = true; solo = false; applyUI(); });
+  $(k).addEventListener("input", () => { state[k] = parseFloat($(k).value); edited(); applyUI(); });
 }
-$("shape").addEventListener("change", () => { state.shape = $("shape").value; paused = true; solo = false; applyUI(); });
-$("color").addEventListener("change", () => { state.color = $("color").value; paused = true; solo = false; applyUI(); });
-$("cin").addEventListener("input", () => { state.color = "custom"; paused = true; solo = false; applyUI(); });
-$("cout").addEventListener("input", () => { state.color = "custom"; paused = true; solo = false; applyUI(); });
-$("cracks").addEventListener("change", () => { state.cracks = $("cracks").checked; paused = true; solo = false; applyUI(); });
-$("reseed").addEventListener("click", () => { state.seed = Math.floor(Math.random() * 99) + 1; paused = true; solo = false; applyUI(); });
+$("shape").addEventListener("change", () => { state.shape = $("shape").value; edited(); applyUI(); });
+$("color").addEventListener("change", () => { state.color = $("color").value; edited(); applyUI(); });
+$("launch").addEventListener("change", () => { state.launch = $("launch").value; edited(); applyUI(); });
+$("cin").addEventListener("input", () => { state.color = "custom"; edited(); applyUI(); });
+$("cout").addEventListener("input", () => { state.color = "custom"; edited(); applyUI(); });
+$("cracks").addEventListener("change", () => { state.cracks = $("cracks").checked; edited(); applyUI(); });
+$("reseed").addEventListener("click", () => { state.seed = Math.floor(Math.random() * 99) + 1; edited(); applyUI(); });
 $("resettips").addEventListener("click", () => { for (const k in tipOverrides) delete tipOverrides[k]; applyUI(); });
 $("toggle").addEventListener("click", () => {
   if (!paused) { paused = true; solo = false; }
@@ -440,13 +495,18 @@ function canvasPoint(e) {
   const b = canvas.getBoundingClientRect();
   return { x: (e.clientX - b.left) * canvas.width / b.width, y: (e.clientY - b.top) * canvas.height / b.height };
 }
+// visual position of a main tip = logical tip (base + drag offset) minus the fall offset
+function visualTip(t, i) {
+  const ov = tipOverrides[i] || { dx: 0, dy: 0 };
+  return { x: t.x + ov.dx, y: t.y + ov.dy - t.dy };
+}
 canvas.addEventListener("pointerdown", e => {
   if (state.shape !== "crystal") return;
   const p = canvasPoint(e);
   let best = -1, bestD = 16;
   lastTips.forEach((t, i) => {
-    const ov = tipOverrides[i] || { dx: 0, dy: 0 };
-    const d = Math.hypot(p.x - (t.x + ov.dx), p.y - (t.y + ov.dy));
+    const v = visualTip(t, i);
+    const d = Math.hypot(p.x - v.x, p.y - v.y);
     if (d < bestD) { bestD = d; best = i; }
   });
   if (best >= 0) { dragIdx = best; paused = true; solo = false; canvas.setPointerCapture(e.pointerId); applyUI(); }
@@ -455,7 +515,7 @@ canvas.addEventListener("pointermove", e => {
   if (dragIdx === null) return;
   const p = canvasPoint(e);
   const t = lastTips[dragIdx];
-  if (t) tipOverrides[dragIdx] = { dx: p.x - t.x, dy: p.y - t.y };
+  if (t) tipOverrides[dragIdx] = { dx: p.x - t.x, dy: p.y - t.y + t.dy };
 });
 canvas.addEventListener("pointerup", () => { dragIdx = null; });
 
@@ -468,18 +528,18 @@ function frame(now) {
       Object.assign(from, state);
       idx = (idx + 1) % presets.length;
       const t = presets[idx];
-      state.name = t.name; state.shape = t.shape; state.color = t.color; state.cracks = t.cracks;
+      state.name = t.name; state.shape = t.shape; state.color = t.color; state.cracks = t.cracks; state.launch = t.launch;
       for (const k in tipOverrides) delete tipOverrides[k];
     }
     const blend = Math.min(1, (now - lastSwitch) / 800);
     const t = presets[idx];
     for (const k of NUM) state[k] = from[k] + (t[k] - from[k]) * blend;
   }
-  // Solo play restarts the attack every 2.5 s; preset loop uses its own switch time
-  const grow = solo
-    ? Math.min(1, ((now - soloStart) % 2500) / 600)
-    : Math.min(1, (now - lastSwitch) / 600);
-  const time = now / 1000;
+  // Time inside the attack cycle. While editing (paused) the attack is frozen fully risen, so tips can be dragged.
+  const start = solo ? soloStart : lastSwitch;
+  const cycleLen = state.rise * (1 + state.stagger) + state.hold + 600;
+  const tc = (now - start) % cycleLen;
+  const frozen = paused;
   const c = colorsFor(state);
   const alpha = 1 - state.fade * 0.5;
 
@@ -488,39 +548,38 @@ function frame(now) {
   ctx.fillRect(0, groundY, canvas.width, 2);
 
   const n = Math.round(state.count);
-  const h = state.height * grow;
   if (state.shape === "crystal") {
-    drawCrystals(state, c, alpha, grow);
+    drawCrystals(state, c, alpha, tc, frozen);
   } else if (state.shape === "burst") {
-    for (const p of burstPaths(state, h)) {
-      const g = ctx.createLinearGradient(0, groundY, 0, groundY - 130);
-      g.addColorStop(0, hexA(c.inner, alpha));
-      g.addColorStop(1, hexA(c.outer, alpha));
-      ctx.save(); ctx.shadowBlur = state.glow * 30; ctx.shadowColor = hexA(c.inner, 0.9);
-      ctx.fillStyle = g; ctx.fill(p); ctx.restore();
-      if (state.edge > 0) { ctx.strokeStyle = hexA(c.outer, alpha); ctx.lineWidth = state.edge; ctx.stroke(p); }
+    const cx = 320, cy = groundY - 130, base = 4 + (1 - state.curve) * 10;
+    for (let i = 0; i < n; i++) {
+      const tm = itemTiming(i, n, state, tc, frozen);
+      if (tm.alpha <= 0) continue;
+      const a = (i / n) * Math.PI * 2 + 0.3;
+      ctx.save();
+      ctx.translate(0, -tm.dy);
+      fillPiece(rayPath(cx, cy, a, state.height * 0.9 * tm.p, base), c, alpha * tm.alpha, state);
+      ctx.restore();
     }
   } else {
     for (let i = 0; i < n; i++) {
-      const paths = state.shape === "arc"
-        ? arcPaths(startX + i * state.spacing, h, state)
-        : slabPaths(startX + i * (state.spacing + 14), h, state);
-      const g = ctx.createLinearGradient(0, groundY, 0, groundY - 130);
-      g.addColorStop(0, hexA(c.inner, alpha));
-      g.addColorStop(1, hexA(c.outer, alpha));
-      for (const p of paths) {
-        ctx.save(); ctx.shadowBlur = state.glow * 30; ctx.shadowColor = hexA(c.inner, 0.9);
-        ctx.fillStyle = g; ctx.fill(p); ctx.restore();
-        if (state.edge > 0) { ctx.strokeStyle = hexA(c.outer, alpha); ctx.lineWidth = state.edge; ctx.stroke(p); }
-      }
+      const tm = itemTiming(i, n, state, tc, frozen);
+      if (tm.alpha <= 0 || tm.p <= 0) continue;
+      const h = state.height * tm.p;
+      const x = state.shape === "arc" ? startX + i * state.spacing : startX + i * (state.spacing + 14);
+      const path = state.shape === "arc" ? arcPath(x, h, state) : slabPath(x, h, state);
+      ctx.save();
+      ctx.translate(0, -tm.dy);
+      fillPiece(path, c, alpha * tm.alpha, state);
       if (state.shape === "slab" && state.cracks) {
-        ctx.strokeStyle = hexA("#ffffff", 0.7 * alpha);
+        ctx.strokeStyle = hexA("#ffffff", 0.7 * alpha * tm.alpha);
         ctx.lineWidth = 1.5;
-        for (const p of crackPaths(startX + i * (state.spacing + 14), h, state, i + 1)) ctx.stroke(p);
+        for (const p of crackPaths(x, h, state, i + 1)) ctx.stroke(p);
       }
+      ctx.restore();
     }
   }
-  drawSparkles(state, c, time);
+  drawSparkles(state, c, now / 1000);
 
   if (!paused) applyUI();
   requestAnimationFrame(frame);

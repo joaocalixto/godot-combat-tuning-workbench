@@ -20,6 +20,12 @@
     "tilt": 0,
     "fade": 0.1
   },
+  "launch": {
+    "style": "fall",
+    "rise_ms": 700,
+    "hold_ms": 400,
+    "stagger": 0.4
+  },
   "crystal": {
     "width": 34,
     "facets": 5,
