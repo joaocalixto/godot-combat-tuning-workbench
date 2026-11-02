@@ -84,4 +84,14 @@ A preset saved as JSON looks like this:
 
 ![Crystal cluster with a dragged tip](docs/ice-mage-demo/crystal-editor.png)
 
+**Play, save and reuse a definition:**
+
+- **Save to library:** type a name in *Definition name* and click *Save to library*. The definition stays in your browser.
+- **Play this:** replays the current definition on its own, in a loop, so you can watch it.
+- **Load / Play / Delete:** each saved definition has its own buttons in the library list.
+- **Import JSON:** paste a saved JSON into the box and click *Import JSON* to apply it.
+- **Save preview:** *Save still (PNG)* saves the picture; *Save 3 s clip (WebM)* records three seconds of the attack; *Save JSON file* saves the definition.
+
+Example files saved in the repository: [ice-crystal-v3.json](docs/examples/ice-crystal-v3.json), [ice-crystal-v3.png](docs/examples/ice-crystal-v3.png) and [ice-crystal-v3.webm](docs/examples/ice-crystal-v3.webm).
+
 **Shader and effect sources:** [docs/shader-index.md](docs/shader-index.md)

@@ -1,0 +1,32 @@
+{
+  "name": "ice-crystal-v3",
+  "shape": "crystal",
+  "color": "pale-frost",
+  "colors": {
+    "inner": "#c9ecff",
+    "outer": "#ffffff"
+  },
+  "shader": {
+    "cracks": false,
+    "glow": 0.5,
+    "sparkle": 0.4,
+    "edge": 1.5
+  },
+  "geometry": {
+    "count": 4,
+    "spacing": 60,
+    "height": 110,
+    "curve": 0.5,
+    "tilt": 0,
+    "fade": 0.1
+  },
+  "crystal": {
+    "width": 34,
+    "facets": 5,
+    "asymmetry": 0.35,
+    "jitter": 0.25,
+    "side_crystals": 2,
+    "seed": 11,
+    "tip_offsets": []
+  }
+}
