@@ -43,3 +43,29 @@ A project can describe its own paths and rules in a `tuning-config.json` file at
 ```
 
 With `camera_shake` set to `false`, impacts stay soft.
+
+## Example: changing the shape of a wave attack
+
+A common case is a ground wave attack made of several slashes. The workbench lets you change the shape of each wave without touching code:
+
+- **Count:** how many waves appear (for example 3).
+- **Spacing:** the distance between waves.
+- **Height:** how tall each wave rises.
+- **Curve:** how round or sharp the wave edge is.
+- **Tilt:** how much the wave leans forward.
+- **Fade:** how quickly the wave disappears.
+
+A saved preset looks like this:
+
+```json
+{
+  "name": "wind-wave-v2",
+  "layers": {
+    "wave": { "enabled": true, "count": 3, "spacing": 48, "height": 36, "curve": 0.7, "tilt": 12, "fade": 0.4 },
+    "trail": { "enabled": true, "length": 60, "brightness": 0.8 }
+  },
+  "hitbox_overlay": true
+}
+```
+
+Demo video: *(to be added: a short recording of the workbench, showing the wave shape changing from one preset to another. Save it as `docs/wave-demo.mp4` and link it here.)*
